@@ -54,7 +54,7 @@ let extractSymbols str =
 	      incr j
 	    done;
 	    (* The symbol, the place to start*)
-	    (NTerm(String.sub str (i+1) (!j)))::
+	    (NTerm(Hashtbl.hash (String.sub str (i+1) (!j))))::
 	      nextSymbol (!j+1)
 	  )
 	else
