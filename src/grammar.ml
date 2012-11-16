@@ -34,42 +34,30 @@ components, separated by |
 *)
 let cutRightMember r = Str.split (Str.regexp "|") r
 
+(* From a string to a list of terminals *)
+let toTerminals str =
+  let length = String.length str in
+  let rec aux = function
+    | 0 -> []
+    | i  -> (Term(str.[length - i]))::(aux (i - 1))
+  in
+  aux length
+
 (* Extracts symbols from a part of a right member of a
    production rule
  *)
 let extractSymbols str =
-  let length = String.length str in
-  let rec nextSymbol i =
-    if i < length then
-      (
-	if str.[i] = '%' then
-	  (
-	    let j = ref (i+1) in
-	    (* If over the limits of the string, raise
-	       an exception.
-	       Which will be caught and thrown again as a 
-	       syntax error.
-	    *)
-	    while str.[!j] <> '%' do
-	      incr j
-	    done;
-	    (* The symbol, the place to start*)
-	    (NTerm(Hashtbl.hash (String.sub str (i+1) (!j))))::
-	      nextSymbol (!j+1)
-	  )
-	else
-	  (
-	    let j = ref (i+1) in
-	    while !j < length || str.[!j] <> '%' do
-	      incr j
-	    done;
-	    let e = if !j < length then !j else !j - 1 in
-	    (Term(String.sub str (i+1) e))::nextSymbol (!j + 1)
-	  )
-      )
+  let parts = Str.full_split (Str.regexp "%") str in
+  (* delim : false pas de % rencontre ; true, % rencontre *)
+  let rec aux delim = function
+    | [] -> []
+    | (Str.Text(s))::l when not delim ->
+      (toTerminals s) @ (aux delim l)
+    | (Str.Text(s))::l ->
+     ( NTerm(Hashtbl.hash s)) :: (aux delim l)
+    | (Str.Delim(s))::l -> aux (not delim) l
   in
-  nextSymbol 0
-
+  aux false parts
  
 (* Format of a file representing a grammar.
 first line :
@@ -86,10 +74,12 @@ S -> a%S%b | d%S%%S%
 
 (* The start symbol is noted S *)
 let fromFile path = 
-  let file = input_in path in
+  let file = open_in path in
   try 
     while true do
       let s = input_line file in
       let nT, rightMember = cutRule s in
       let transfs = cutRightMember rightMember in
-      
+      ()      
+    done;
+  with _ -> ()
