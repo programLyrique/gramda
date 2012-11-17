@@ -59,6 +59,19 @@ let extractSymbols str =
   in
   aux false parts
  
+
+(* Converts a line of the grammar into a machine readable
+   format
+*)
+let processLine line =
+  let nT, rightMember = cutRule line in
+  let transfs = cutRightMember rightMember in
+  let rec convert = function
+    | [] -> []
+    | s::l -> (extractSymbols s)::(convert l)
+  in
+  (nT, convert transfs)
+
 (* Format of a file representing a grammar.
 first line :
    'nonTerminal' -> production rules right member.
@@ -73,13 +86,11 @@ S -> a%S%b | d%S%%S%
 *)
 
 (* The start symbol is noted S *)
-let fromFile path = 
+let grammarFromFile path = 
   let file = open_in path in
   try 
     while true do
       let s = input_line file in
-      let nT, rightMember = cutRule s in
-      let transfs = cutRightMember rightMember in
-      ()      
+      let res = processLine s in ()
     done;
   with _ -> ()
