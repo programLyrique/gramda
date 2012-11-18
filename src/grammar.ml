@@ -12,15 +12,20 @@ type terminal = char
   of an arrow and the strings started by a % and terminated
   by %.
 *)
-type nonTerminal = int
+type nonTerminal = string
 
 type symbol = Term of terminal | NTerm of nonTerminal
 
-(* A nonTerminal is the axiom ,
-   the other member of the tuple is the rules
+(* startSymbol, nonTerm, rightMember
+   nonTerms : list of non terminals in the grammar
+   rightMembers : Hashtbl of right members of production, 
+   corresponding to the non terminals, each right member is
+   a list of clauses ( | ), which are lists of symbols.
 *)
-type grammar = nonTerminal * 
-( ( nonTerminal -> symbol list list) list )
+type grammar = {startSymbol : nonTerminal ;
+		nonTerms :  nonTerminal list ;
+		rightMembers : 
+		  (nonTerminal,symbol list list) Hashtbl.t  }
 
 (* Cut the rule into two parts : the non terminal on the left,
 the transformation on the right.
@@ -54,7 +59,7 @@ let extractSymbols str =
     | (Str.Text(s))::l when not delim ->
       (toTerminals s) @ (aux delim l)
     | (Str.Text(s))::l ->
-     ( NTerm(Hashtbl.hash s)) :: (aux delim l)
+     ( NTerm(s)) :: (aux delim l)
     | (Str.Delim(s))::l -> aux (not delim) l
   in
   aux false parts
@@ -88,9 +93,28 @@ S -> a%S%b | d%S%%S%
 (* The start symbol is noted S *)
 let grammarFromFile path = 
   let file = open_in path in
+  let pRules = Hashtbl.create 50 in
+  let nonTer = ref [] in
+  let start = ref "" in
+  begin
   try 
     while true do
       let s = input_line file in
-      let res = processLine s in ()
-    done;
-  with _ -> ()
+      let nT, rightMember = processLine s in 
+      Hashtbl.add pRules nT rightMember;
+      if (!nonTer) = [] then start := nT;
+      nonTer := nT::(!nonTer)
+    done
+    (* Improve error management *)
+  with
+       | End_of_file -> ()
+       | _ -> raise (SyntaxError(1, "Syntax error"))
+  end;
+    (* Add other functions to get the list of
+       non terminals etc
+    *)
+    {startSymbol = !start;
+     nonTerms = !nonTer;
+     rightMembers = pRules
+    }
+      
